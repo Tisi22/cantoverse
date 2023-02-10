@@ -39,12 +39,12 @@ contract Marketplace is ReentrancyGuard {
     _marketOwner = payable(msg.sender);
   }
 
+  //Before callin this function with unity, need to cal setApprovalForAll(address(this), true); from the contract that has the NFT
   // List the NFT on the marketplace
   function listNft(address _nftContract, uint256 _tokenId, uint256 _price) public payable nonReentrant {
     require(_price > 0, "Price must be at least 1 wei");
     require(msg.value == LISTING_FEE, "Not enough ether for listing fee");
 
-    IERC721(_nftContract).setApprovalForAll(address(this), true);
     IERC721(_nftContract).transferFrom(msg.sender, address(this), _tokenId);
 
     _nftCount.increment();
