@@ -23,7 +23,8 @@ contract Cantoverse is ReentrancyGuard {
 
     mapping(address => mapping(uint256 => NFT)) private contractNftIdentifier;
 
-    mapping(address => uint256[]) private listedNFTPerContract;
+    //TODO: Change to private
+    mapping(address => uint256[]) public listedNFTPerContract;
 
     event NFTListed(address nftContract, uint256 tokenId, address seller, address owner, uint256 price);
 
@@ -38,8 +39,6 @@ contract Cantoverse is ReentrancyGuard {
     function listNft(address _nftContract, uint256 _tokenId, uint256 _price) public nonReentrant {
         require(_price > 0, "Price must be at least 1 wei");
 
-        IERC721(_nftContract).transferFrom(msg.sender, address(this), _tokenId);
-
         _nftCount.increment();
 
         listedNFTPerContract[_nftContract].push(_tokenId);
@@ -50,6 +49,8 @@ contract Cantoverse is ReentrancyGuard {
             _price,
             true
         );
+
+        IERC721(_nftContract).transferFrom(msg.sender, address(this), _tokenId);
 
         emit NFTListed(_nftContract, _tokenId, msg.sender, address(this), _price);
     }
@@ -63,17 +64,38 @@ contract Cantoverse is ReentrancyGuard {
         payable(nft.seller).transfer(SafeMath.div(SafeMath.mul(99, nft.price),100));
         _marketOwner.transfer(SafeMath.div(nft.price,100));
 
-        //address payable buyer = payable(msg.sender);
         nft.owner = payable(msg.sender);
         nft.listed = false;
 
         _nftsSold.increment();
 
-        //TODO: Delete the item from the array
-        //listedNFTPerContract[_nftContract].removeItem(_tokenId);
+        removeSoldElement(_nftContract,  _tokenId);
 
         IERC721(_nftContract).transferFrom(address(this), msg.sender, _tokenId);
         
+    }
+
+    function removeListedNFT(address _nftContract, uint256 _tokenId) public nonReentrant {
+        require(contractNftIdentifier[_nftContract][_tokenId].seller == msg.sender; "Caller is not the owner");
+
+        _nftCount.decrement();
+        removeSoldElement(_nftContract,  _tokenId);
+
+        contractNftIdentifier[_nftContract][_tokenId].listed = false; 
+        contractNftIdentifier[_nftContract][_tokenId].seller = address(0);
+
+        IERC721(_nftContract).transferFrom(address(this), msg.sender, _tokenId);
+    }
+
+    function removeSoldElement(address _nftContract, uint256 _tokenId) private {
+        for (uint256 i = 0; i < listedNFTPerContract[_nftContract].length; i++)
+        {
+            if(listedNFTPerContract[_nftContract][i] == _tokenId)
+            {
+                listedNFTPerContract[_nftContract][i] = listedNFTPerContract[_nftContract][listedNFTPerContract[_nftContract].length - 1];
+                listedNFTPerContract[_nftContract].pop();
+            }
+        }
     }
 
     function getListedNftsPerContract(address _nftContract) public view returns (uint256[] memory _tokenIds, uint256[] memory _prices) {
@@ -93,11 +115,9 @@ contract Cantoverse is ReentrancyGuard {
         return (tokenIds, prices);
     }
 
-    //TODO: CHECK this function because sometimes it doesn´t work
     function getMyListedNftsPerContract(address _nftContract) public view returns (uint256[] memory _tokenIds, uint256[] memory _prices) {
-        //uint nftCount = _nftCount.current();
         uint myListedNftCount = 0;
-        for (uint i = 0; i < _nftCount.current(); i++) {
+        for (uint i = 0; i < listedNFTPerContract[_nftContract].length; i++) {
             if (contractNftIdentifier[_nftContract][listedNFTPerContract[_nftContract][i]].seller == msg.sender && contractNftIdentifier[_nftContract][listedNFTPerContract[_nftContract][i]].listed) {
              myListedNftCount++;
             }
@@ -107,7 +127,7 @@ contract Cantoverse is ReentrancyGuard {
         uint256[] memory prices = new uint256[](myListedNftCount);
         uint nftsIndex = 0;
         for (uint i = 0; i < listedNFTPerContract[_nftContract].length ; i++) {
-            if(contractNftIdentifier[_nftContract][listedNFTPerContract[_nftContract][i]].listed) {
+            if(contractNftIdentifier[_nftContract][listedNFTPerContract[_nftContract][i]].seller == msg.sender && contractNftIdentifier[_nftContract][listedNFTPerContract[_nftContract][i]].listed) {
                 tokenIds[nftsIndex] = listedNFTPerContract[_nftContract][i];
                 prices[nftsIndex] = contractNftIdentifier[_nftContract][listedNFTPerContract[_nftContract][i]].price;
                 nftsIndex++;
@@ -115,4 +135,5 @@ contract Cantoverse is ReentrancyGuard {
         }
         return (tokenIds, prices);
     }
+
 }
