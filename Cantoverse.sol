@@ -6,6 +6,8 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import { SafeMath } from "./libraries/SafeMath.sol";
 
+//TODO: Test getPrice function
+
 contract Cantoverse is ReentrancyGuard {
 
     using Counters for Counters.Counter;
@@ -76,13 +78,12 @@ contract Cantoverse is ReentrancyGuard {
     }
 
     function removeListedNFT(address _nftContract, uint256 _tokenId) public nonReentrant {
-        require(contractNftIdentifier[_nftContract][_tokenId].seller == msg.sender; "Caller is not the owner");
+        require(contractNftIdentifier[_nftContract][_tokenId].seller == msg.sender, "Caller is not the owner");
 
         _nftCount.decrement();
         removeSoldElement(_nftContract,  _tokenId);
 
         contractNftIdentifier[_nftContract][_tokenId].listed = false; 
-        contractNftIdentifier[_nftContract][_tokenId].seller = address(0);
 
         IERC721(_nftContract).transferFrom(address(this), msg.sender, _tokenId);
     }
@@ -98,21 +99,19 @@ contract Cantoverse is ReentrancyGuard {
         }
     }
 
-    function getListedNftsPerContract(address _nftContract) public view returns (uint256[] memory _tokenIds, uint256[] memory _prices) {
+    function getListedNftsPerContract(address _nftContract) public view returns (uint256[] memory _tokenIds) {
         uint256 nftCount = _nftCount.current();
         uint256 unsoldNftsCount = nftCount - _nftsSold.current();
 
         uint256[] memory tokenIds = new uint256[](unsoldNftsCount);
-        uint256[] memory prices = new uint256[](unsoldNftsCount);
         uint nftsIndex = 0;
         for (uint i = 0; i < listedNFTPerContract[_nftContract].length ; i++) {
             if(contractNftIdentifier[_nftContract][listedNFTPerContract[_nftContract][i]].listed) {
                 tokenIds[nftsIndex] = listedNFTPerContract[_nftContract][i];
-                prices[nftsIndex] = contractNftIdentifier[_nftContract][listedNFTPerContract[_nftContract][i]].price;
                 nftsIndex++;
             }
         }
-        return (tokenIds, prices);
+        return tokenIds;
     }
 
     function getMyListedNftsPerContract(address _nftContract) public view returns (uint256[] memory _tokenIds, uint256[] memory _prices) {
@@ -134,6 +133,10 @@ contract Cantoverse is ReentrancyGuard {
             }
         }
         return (tokenIds, prices);
+    }
+
+    function getPrice(address _nftContract, uint256 _tokenId) public view returns (uint256){
+        return contractNftIdentifier[_nftContract][_tokenId].price;
     }
 
 }
