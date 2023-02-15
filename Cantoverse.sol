@@ -114,7 +114,7 @@ contract Cantoverse is ReentrancyGuard {
         return tokenIds;
     }
 
-    function getMyListedNftsPerContract(address _nftContract) public view returns (uint256[] memory _tokenIds, uint256[] memory _prices) {
+    function getMyListedNftsPerContract(address _nftContract) public view returns (uint256[] memory _tokenIds) {
         uint myListedNftCount = 0;
         for (uint i = 0; i < listedNFTPerContract[_nftContract].length; i++) {
             if (contractNftIdentifier[_nftContract][listedNFTPerContract[_nftContract][i]].seller == msg.sender && contractNftIdentifier[_nftContract][listedNFTPerContract[_nftContract][i]].listed) {
@@ -123,16 +123,14 @@ contract Cantoverse is ReentrancyGuard {
         }
 
         uint256[] memory tokenIds = new uint256[](myListedNftCount);
-        uint256[] memory prices = new uint256[](myListedNftCount);
         uint nftsIndex = 0;
         for (uint i = 0; i < listedNFTPerContract[_nftContract].length ; i++) {
             if(contractNftIdentifier[_nftContract][listedNFTPerContract[_nftContract][i]].seller == msg.sender && contractNftIdentifier[_nftContract][listedNFTPerContract[_nftContract][i]].listed) {
                 tokenIds[nftsIndex] = listedNFTPerContract[_nftContract][i];
-                prices[nftsIndex] = contractNftIdentifier[_nftContract][listedNFTPerContract[_nftContract][i]].price;
                 nftsIndex++;
             }
         }
-        return (tokenIds, prices);
+        return (tokenIds);
     }
 
     function getPrice(address _nftContract, uint256 _tokenId) public view returns (uint256){
