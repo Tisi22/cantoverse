@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import { SafeMath } from "./libraries/SafeMath.sol";
 
 //TODO: Test getPrice function
+//TODO: Add royalties form the ERC721
 
 contract Cantoverse is ReentrancyGuard {
 
