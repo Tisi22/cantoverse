@@ -1,0 +1,27 @@
+{
+  "name": "Cantoverse",
+  "description": "Cantoverse NFT DAO",
+  "image": "https://gateway.lighthouse.storage/ipfs/QmZJ9c8rZjhsbWHmnmEwURakuUc8HLurH69MZXjt99Us2b",
+  "dna": "49c1162550b642114b23dfe38b7c13c545fc1f56",
+  "edition": 1,
+  "date": 1652193860355,
+  "attributes": [
+    {
+      "trait_type": "Background",
+      "value": "Pink"
+    },
+    {
+      "trait_type": "Cat",
+      "value": "Grey"
+    },
+    {
+      "trait_type": "Eyes",
+      "value": "Blue"
+    },
+    {
+      "trait_type": "Cursor",
+      "value": "Yarn"
+    }
+  ],
+  "animation_url": "https://gateway.lighthouse.storage/ipfs/QmTNs8Tvie6RV5aohJBcGDBUDt2jY5KFuUYPGkcRG82WMP/"
+}

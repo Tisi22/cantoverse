@@ -4,10 +4,9 @@ pragma solidity ^0.8.13;
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/common/ERC2981.sol";
 import { SafeMath } from "./libraries/SafeMath.sol";
 
-//TODO: Test getPrice function
-//TODO: Add royalties form the ERC721
 
 contract Cantoverse is ReentrancyGuard {
 
@@ -15,7 +14,15 @@ contract Cantoverse is ReentrancyGuard {
     Counters.Counter private _nftCount;
     Counters.Counter private _nftsSold;
 
-    address payable private _marketOwner;
+    address payable public _marketOwner;
+    bytes4 private constant FUNC_SELECTOR = bytes4(keccak256("royaltyInfo(uint256 _tokenId, uint256 _salePrice)"));
+
+    uint16 public MarketPlaceFee;
+
+    modifier onlyOwner(){
+        require(msg.sender == _marketOwner);
+        _;
+    }
 
     struct NFT {
         address payable seller;
@@ -26,8 +33,7 @@ contract Cantoverse is ReentrancyGuard {
 
     mapping(address => mapping(uint256 => NFT)) private contractNftIdentifier;
 
-    //TODO: Change to private
-    mapping(address => uint256[]) public listedNFTPerContract;
+    mapping(address => uint256[]) private listedNFTPerContract;
 
     event NFTListed(address nftContract, uint256 tokenId, address seller, address owner, uint256 price);
 
@@ -59,13 +65,19 @@ contract Cantoverse is ReentrancyGuard {
     }
 
     // Buy an NFT
-    function buyNft(address _nftContract, uint256 _tokenId) public payable nonReentrant {
+    function buyNft(address _nftContract, uint256 _tokenId) public payable nonReentrant returns (uint256 _feeValue, uint256 _royaltiesValue, uint256 sellerValue) {
         NFT storage nft = contractNftIdentifier[_nftContract][_tokenId];
-        require(msg.value == nft.price, "Send the exact value to cover asking price");
+        require(msg.value >= nft.price, "Not enough value sent");
+        require (nft.listed, "Token Id not listed");
 
-        
-        payable(nft.seller).transfer(SafeMath.div(SafeMath.mul(99, nft.price),100));
-        _marketOwner.transfer(SafeMath.div(nft.price,100));
+        (address contractNFTOwner, uint256 royaltiesValue) = royalties(_nftContract, _tokenId, nft.price );
+
+        uint256 feeValue = SafeMath.div(SafeMath.mul(nft.price,MarketPlaceFee), 10000);
+
+        _marketOwner.transfer(feeValue);
+        payable(contractNFTOwner).transfer(royaltiesValue);
+        (nft.seller).transfer(nft.price - royaltiesValue - feeValue);
+
 
         nft.owner = payable(msg.sender);
         nft.listed = false;
@@ -75,8 +87,44 @@ contract Cantoverse is ReentrancyGuard {
         removeSoldElement(_nftContract,  _tokenId);
 
         IERC721(_nftContract).transferFrom(address(this), msg.sender, _tokenId);
+
+        return(feeValue, royaltiesValue, nft.price - royaltiesValue - feeValue );
         
     }
+
+    //TODO: Change to internal
+    function royalties(address _nftContract, uint256 _tokenId, uint256 _price) public view returns (address, uint256){
+        return IERC2981(_nftContract).royaltyInfo(_tokenId, _price);
+    }
+
+    function callDetectRoyaltyInfo(address _nftContract, uint256 _token, uint256 _price) public view returns (bool) {
+        bool success;
+        bytes memory data = abi.encodeWithSelector(FUNC_SELECTOR, _token, _price);
+
+        assembly {
+            success := staticcall(
+                gas(),            // gas remaining
+                _nftContract,    // destination address
+                add(data, 32),  // input buffer (starts after the first 32 bytes in the `data` array)
+                mload(data),    // input length (loaded from the first 32 bytes in the `data` array)
+                0,              // output buffer
+                0               // output length
+            )
+        }
+
+        return success;
+    }
+
+    function call2DetectRoyaltyInfo(address _nftContract, uint256 _tokenId, uint256 _price) public view returns (bool) {
+        if(IERC2981(_nftContract).royaltyInfo(_tokenId, _price) != null){
+            return true;
+        }
+        else{
+            return false;
+        }
+
+    }
+ 
 
     function removeListedNFT(address _nftContract, uint256 _tokenId) public nonReentrant {
         require(contractNftIdentifier[_nftContract][_tokenId].seller == msg.sender, "Caller is not the owner");
@@ -136,6 +184,10 @@ contract Cantoverse is ReentrancyGuard {
 
     function getPrice(address _nftContract, uint256 _tokenId) public view returns (uint256){
         return contractNftIdentifier[_nftContract][_tokenId].price;
+    }
+
+    function setMarketPlaceFee (uint16 _MarketPlaceFee) public onlyOwner {
+        MarketPlaceFee = _MarketPlaceFee;
     }
 
 }

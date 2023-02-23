@@ -2,24 +2,38 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/common/ERC2981.sol";
+import "./Cantoverse.sol";
 
-contract MyToken is ERC721, ERC721URIStorage, ERC2981, Ownable {
-    using Counters for Counters.Counter;
+contract MyToken is ERC721, ERC2981, Ownable {
 
-    Counters.Counter private _tokenIdCounter;
+    uint256 public price;
+    uint256 public totalSupply;
+    uint256 tokenId;
+    string public uri;
+    bool public mintActive;
 
-    constructor() ERC721("MyToken", "MTK") {
+    constructor(uint256 _totalSupply) ERC721("CantoMaze", "CTM") {
+        totalSupply = _totalSupply;
+        tokenId = 1;
+        mintActive = false;
     }
 
-    function safeMint(address to, string memory uri) public onlyOwner {
-        uint256 tokenId = _tokenIdCounter.current();
-        _tokenIdCounter.increment();
-        _safeMint(to, tokenId);
-        _setTokenURI(tokenId, uri);
+    /**
+     * @dev Mints an NFT.
+     *
+     * Requirements:
+     *
+     * - value sent iqual or more than price
+     * - tokenId less or equal totalSupply
+     */
+    function safeMint() public payable {
+        require(msg.value >= price , "Not enough value sent");
+        require(tokenId <= totalSupply, "All collection has been minted");
+        require(mintActive, "Minted is paused");
+        tokenId++;
+        _safeMint(msg.sender, tokenId-1);
     }
 
     /**
@@ -34,20 +48,37 @@ contract MyToken is ERC721, ERC721URIStorage, ERC2981, Ownable {
         _setDefaultRoyalty(receiver, feeNumerator);
     }
 
+    /**
+     * @dev Sets NFT price
+     */
+    function setPrice(uint256 _price) public onlyOwner {
+        price = _price;
+    }
+
+    /**
+     * @dev Sets URI
+     */
+    function setURI(string memory _uri) public onlyOwner {
+        uri = _uri;
+    }
+
+    /**
+     * @dev Sets mint state
+     */
+    function setMintState(bool _mintActive) public onlyOwner {
+        mintActive = _mintActive;
+    }
+
+    /**
+     * @dev Deploy Cantoverse
+     */
+    function deploy() external onlyOwner returns (address) {
+        Cantoverse cantoverse = new Cantoverse();
+
+        return address(cantoverse);
+    }
+
     // The following functions are overrides required by Solidity.
-
-    function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
-        super._burn(tokenId);
-    }
-
-    function tokenURI(uint256 tokenId)
-        public
-        view
-        override(ERC721, ERC721URIStorage)
-        returns (string memory)
-    {
-        return super.tokenURI(tokenId);
-    }
 
     function supportsInterface(bytes4 interfaceId)
         public
@@ -57,5 +88,16 @@ contract MyToken is ERC721, ERC721URIStorage, ERC2981, Ownable {
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
+    }
+
+    function _baseURI() internal view virtual override returns (string memory) {
+        return uri;
+    }
+
+    function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
+        _requireMinted(tokenId);
+
+        string memory baseURI = _baseURI();
+        return bytes(baseURI).length > 0 ? string(abi.encode(baseURI)) : "";
     }
 }
