@@ -3,11 +3,11 @@ pragma solidity ~0.8.17;
 
 import "@openzeppelin/contracts/utils/Base64.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import { StringUtils } from "../libraries/StringUtils.sol";
+import { StringUtils } from "./libraries/StringUtils.sol";
+
 
 contract Metadata {
-
-    string svgPartOne = '<svg xmlns="http://www.w3.org/2000/svg" width="270" height="270" fill="none"> <defs> <pattern id="background" width="100%" height="100%" patternUnits="userSpaceOnUse"> <image href="https://gateway.lighthouse.storage/ipfs/QmQHiSooVvgCxjQPx6RNaSyLhjuKqJKHxSyxFVdNW8EJD6" x="0" y="0" width="100%" height="100%" /> </pattern> </defs> <path fill="url(#background)" d="M0 0h270v270H0z"/> <defs> <filter id="A" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse" height="270" width="270"> <feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity=".225" width="200%" height="200%"/> </filter> </defs> <defs> <linearGradient id="B" x1="0" y1="0" x2="270" y2="270" gradientUnits="userSpaceOnUse"> <stop stop-color="#cb5eee"/><stop offset="1" stop-color="#0cd7e4" stop-opacity=".99"/> </linearGradient> </defs> <text x="32.5" y="231" font-size="27" fill="#fff" filter="url(#A)" font-family="Plus Jakarta Sans,DejaVu Sans,Noto Color Emoji,Apple Color Emoji,sans-serif" font-weight="bold">';
+    string svgPartOne = Image;
     string svgPartTwo = '</text></svg>';
 
     string public tld;
@@ -46,3 +46,4 @@ contract Metadata {
     }
 
 }
+
