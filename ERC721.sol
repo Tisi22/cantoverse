@@ -2,11 +2,16 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/common/ERC2981.sol";
 
+interface Turnstile {
+    function register(address) external returns (uint256);
+}
 
 contract CantoMaze is ERC721, ERC2981, Ownable {
+    using Strings for uint256;
 
     uint256 public maxSupply;
     uint256 tokenId;
@@ -19,11 +24,17 @@ contract CantoMaze is ERC721, ERC2981, Ownable {
     
     mapping(address => bool) public minted;
 
+    // CSR for Canto
+    Turnstile turnstile = Turnstile(0xEcf044C5B4b867CFda001101c617eCd347095B44);
+
     constructor(uint256 _maxSupply) ERC721("CantoMaze", "CTM") {
+        turnstile.register(tx.origin);
         maxSupply = _maxSupply;
         tokenId = 1;
         mintActive = false;
     }
+
+    //----- GIVE/REMOVE/CHECK ACCESS TO WALLET ADDRESS -----//
 
     /**
      * @dev Gives the access to a wallet address
@@ -60,6 +71,15 @@ contract CantoMaze is ERC721, ERC2981, Ownable {
     }
 
     /**
+     * @dev Check access to the gallary of the msg.sender
+     */
+    function checkAccess(uint256 _tokenId) public view returns (bool val){
+        if(ownerOf(_tokenId) == msg.sender || accessWallets[msg.sender]){
+            return true;
+        } 
+    }
+
+    /**
      * @dev Check if the token Id gave access to a wallet address
      */
     function checkAddressPerTokenId(uint256 _tokenId, address addr) internal view returns (bool val){
@@ -68,15 +88,6 @@ contract CantoMaze is ERC721, ERC2981, Ownable {
                 return true;
             }
         }
-    }
-
-    /**
-     * @dev Check access to the gallary of the msg.sender
-     */
-    function checkAccess(uint256 _tokenId) public view returns (bool val){
-        if(ownerOf(_tokenId) == msg.sender || accessWallets[msg.sender]){
-            return true;
-        } 
     }
 
     /**
@@ -123,34 +134,9 @@ contract CantoMaze is ERC721, ERC2981, Ownable {
         return tokenIdAccessWallets[_tokenId];
     }
 
-    /**
-     * @dev Returns all the tokenIds of a wallet
-     */
-    function walletOfOwner(address _owner)
-    public
-    view
-    returns (uint256[] memory)
-  {
-    uint256 ownerTokenCount = balanceOf(_owner);
-    uint256[] memory ownedTokenIds = new uint256[](ownerTokenCount);
-    uint256 currentTokenId = 1;
-    uint256 ownedTokenIndex = 0;
+    //----- END -----//
 
-    while (ownedTokenIndex < ownerTokenCount && currentTokenId <= totalSupply()) {
-      address currentTokenOwner = ownerOf(currentTokenId);
-
-      if (currentTokenOwner == _owner) {
-        ownedTokenIds[ownedTokenIndex] = currentTokenId;
-
-        ownedTokenIndex++;
-      }
-
-      currentTokenId++;
-    }
-
-    return ownedTokenIds;
-  }
-
+    //----- MINT FUNCTIONS -----//
 
     /**
      * @dev Mints an NFT.
@@ -185,6 +171,49 @@ contract CantoMaze is ERC721, ERC2981, Ownable {
         }
     }
 
+    //----- END -----//
+
+    //----- VIEW INFO FUNCTIONS -----//
+
+    /**
+     * @dev Returns all the tokenIds of a wallet
+     */
+    function walletOfOwner(address _owner)
+    public
+    view
+    returns (uint256[] memory)
+    {
+        uint256 ownerTokenCount = balanceOf(_owner);
+        uint256[] memory ownedTokenIds = new uint256[](ownerTokenCount);
+        uint256 currentTokenId = 1;
+        uint256 ownedTokenIndex = 0;
+
+        while (ownedTokenIndex < ownerTokenCount && currentTokenId <= totalSupply()) {
+            address currentTokenOwner = ownerOf(currentTokenId);
+
+            if (currentTokenOwner == _owner) {
+                ownedTokenIds[ownedTokenIndex] = currentTokenId;
+
+                ownedTokenIndex++;
+            }
+
+            currentTokenId++;
+        }
+
+        return ownedTokenIds;
+    }
+
+    /**
+     * @dev Total minted supply
+     */
+    function totalSupply() public view returns (uint256){
+        return tokenId;
+    }
+
+    //----- END -----//
+
+    //----- SET FUNCTIONS -----//
+
     /**
      * @dev Sets the royalty information that all ids in this contract will default to.
      *
@@ -196,7 +225,6 @@ contract CantoMaze is ERC721, ERC2981, Ownable {
     function setFeeNum(address receiver, uint96 feeNumerator) public onlyOwner {
         _setDefaultRoyalty(receiver, feeNumerator);
     }
-
 
     /**
      * @dev Sets URI
@@ -212,16 +240,15 @@ contract CantoMaze is ERC721, ERC2981, Ownable {
         mintActive = _mintActive;
     }
 
-    function totalSupply() public view returns (uint256){
-        return tokenId;
-    }
+    //----- END -----//
 
+    
     //TODO: Remove this function
     function checkLengh(uint256 _tokenId) public view returns (uint256) {
         return tokenIdAccessWallets[_tokenId].length;
     }
 
-    // The following functions are overrides required by Solidity.
+    //----- OVERRIDE FUNCTIONS -----//
 
     function supportsInterface(bytes4 interfaceId)
         public
@@ -237,7 +264,15 @@ contract CantoMaze is ERC721, ERC2981, Ownable {
     function tokenURI(uint256 id) public view virtual override(ERC721) returns (string memory) {
         _requireMinted(id);
 
-        return bytes(uri).length > 0 ? uri : "";
+        return bytes(uri).length > 0 ? string(abi.encodePacked(uri, id.toString(),".json")) : "";
     }
+
+    //----- END -----//
+
+    // Function to receive Canto. msg.data must be empty
+    receive() external payable {}
+
+    // Fallback function is called when msg.data is not empty
+    fallback() external payable {}
 
 }
