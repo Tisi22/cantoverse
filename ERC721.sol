@@ -8,66 +8,149 @@ import "@openzeppelin/contracts/token/common/ERC2981.sol";
 
 contract CantoMaze is ERC721, ERC2981, Ownable {
 
-    uint256 public price;
-    uint256 public totalSupply;
+    uint256 public maxSupply;
     uint256 tokenId;
     string public uri;
     bool public mintActive;
 
-    mapping(address => bool) public owners;
+    mapping(address => bool) private accessWallets;
 
-    mapping(address => bool) public accessWallets;
-
-    mapping(address => address[]) public ownerAccessWallets;
-
+    mapping(uint256 => address[]) private tokenIdAccessWallets;
+    
     mapping(address => bool) public minted;
 
-    constructor(uint256 _totalSupply) ERC721("CantoMaze", "CTM") {
-        totalSupply = _totalSupply;
+    constructor(uint256 _maxSupply) ERC721("CantoMaze", "CTM") {
+        maxSupply = _maxSupply;
         tokenId = 1;
         mintActive = false;
     }
 
-    function giveAccess(address addr) public {
-        require(owners[msg.sender], "you are not an owner");
-        require(ownerAccessWallets[msg.sender].length < 5, "You have already given access to the maximum wallets");
+    /**
+     * @dev Gives the access to a wallet address
+     *
+     * Requirements:
+     *
+     * - Msg.sender needs to be the owner of the token Id
+     * - Max access wallets per token Id is 4
+     * - Address does not have access before
+     */
+    function giveAccess(uint256 _tokenId, address addr) public {
+        require(ownerOf(_tokenId) == msg.sender, "you are not the owner of the token Id");
+        require(tokenIdAccessWallets[_tokenId].length < 4, "You have already given access to the maximum wallets");
+        require(accessWallets[addr] == false, "The wallet address has already access");
 
-        ownerAccessWallets[msg.sender].push(addr);
+        tokenIdAccessWallets[_tokenId].push(addr);
         accessWallets[addr] = true;
     }
 
-    function remmoveAccess(address addr) public {
-        require(owners[msg.sender], "you are not an owner");
-        require(ownerAccessWallets[msg.sender].length > 0, "You have no address to remove access");
-        require(checkOwnerAndAccessAddres(msg.sender, addr), "You did not give access to this wallet");
+    /**
+     * @dev Removes the access to a wallet address
+     *
+     * Requirements:
+     *
+     * - Msg.sender needs to be the owner of the token Id
+     * - The token Id needs to have given access to the wallet address before
+     */
+    function remmoveAccess(uint256 _tokenId, address addr) public {
+        require(ownerOf(_tokenId) == msg.sender, "you are not the owner of the token Id");
+        require(checkAddressPerTokenId(_tokenId, addr), "You did not give access to this wallet with this token Id");
 
         accessWallets[addr] = false;
-        removeAddress(msg.sender, addr);
+        removeAddress(_tokenId, addr);
     }
 
-    function checkAccess() public view returns (bool){
-        return accessWallets[msg.sender];
-    }
-
-    function removeAddress(address owner, address addr) private {
-        for (uint256 i = 0; i < ownerAccessWallets[owner].length; i++)
-        {
-            if(ownerAccessWallets[owner][i] == addr)
-            {
-                ownerAccessWallets[owner][i] = ownerAccessWallets[owner][ownerAccessWallets[owner].length - 1];
-                ownerAccessWallets[owner].pop();
-            }
-        }
-    }
-
-    function checkOwnerAndAccessAddres(address owner, address addr) public view returns (bool val){
-        for(uint256 i = 0; i < ownerAccessWallets[owner].length; i++){
-            if(ownerAccessWallets[owner][i] == addr){
+    /**
+     * @dev Check if the token Id gave access to a wallet address
+     */
+    function checkAddressPerTokenId(uint256 _tokenId, address addr) internal view returns (bool val){
+        for (uint256 i = 0; i < tokenIdAccessWallets[_tokenId].length; i++){
+            if(tokenIdAccessWallets[_tokenId][i] == addr){
                 return true;
             }
         }
-
     }
+
+    /**
+     * @dev Check access to the gallary of the msg.sender
+     */
+    function checkAccess(uint256 _tokenId) public view returns (bool val){
+        if(ownerOf(_tokenId) == msg.sender || accessWallets[msg.sender]){
+            return true;
+        } 
+    }
+
+    /**
+     * @dev Deletes a wallet address from the array of the mapping tokenIdAccessWallets
+     */
+    function removeAddress(uint256 _tokenId, address addr) internal {
+        uint256 index;
+
+        for (uint256 i = 0; i < tokenIdAccessWallets[tokenId].length; i++){
+            if(tokenIdAccessWallets[tokenId][i] == addr){
+                index = i;
+            }
+        }
+        tokenIdAccessWallets[_tokenId][index] = tokenIdAccessWallets[_tokenId][tokenIdAccessWallets[_tokenId].length-1];
+        tokenIdAccessWallets[_tokenId].pop();
+    }
+
+    /**
+     * @dev Remove the access to all the wallets of the token Id
+     *
+     * Requirements:
+     *
+     * - Msg.sender needs to be the owner of the token Id
+     */
+    function removeAccessForAllOfTokenId(uint256 _tokenId) public {
+        require(ownerOf(_tokenId) == msg.sender, "you are not the owner of the token Id");
+
+        for (uint256 i = 0; i < tokenIdAccessWallets[_tokenId].length; i++){
+            accessWallets[tokenIdAccessWallets[_tokenId][i]] = false;
+        }
+
+        delete tokenIdAccessWallets[_tokenId];
+    }
+
+    /**
+     * @dev Returns all the wallets with access for one token Id
+     *
+     * Requirements:
+     *
+     * - Msg.sender needs to be the owner of the token Id
+     */
+    function accessAddressPerTokenId(uint256 _tokenId)public view returns (address[] memory addresses){
+        require(ownerOf(_tokenId) == msg.sender, "you are not the owner of the token Id");
+        return tokenIdAccessWallets[_tokenId];
+    }
+
+    /**
+     * @dev Returns all the tokenIds of a wallet
+     */
+    function walletOfOwner(address _owner)
+    public
+    view
+    returns (uint256[] memory)
+  {
+    uint256 ownerTokenCount = balanceOf(_owner);
+    uint256[] memory ownedTokenIds = new uint256[](ownerTokenCount);
+    uint256 currentTokenId = 1;
+    uint256 ownedTokenIndex = 0;
+
+    while (ownedTokenIndex < ownerTokenCount && currentTokenId <= totalSupply()) {
+      address currentTokenOwner = ownerOf(currentTokenId);
+
+      if (currentTokenOwner == _owner) {
+        ownedTokenIds[ownedTokenIndex] = currentTokenId;
+
+        ownedTokenIndex++;
+      }
+
+      currentTokenId++;
+    }
+
+    return ownedTokenIds;
+  }
+
 
     /**
      * @dev Mints an NFT.
@@ -78,14 +161,12 @@ contract CantoMaze is ERC721, ERC2981, Ownable {
      * - tokenId less or equal totalSupply
      */
     function safeMint() public payable {
-        require(msg.value >= price , "Not enough value sent");
-        require(tokenId <= totalSupply, "All collection has been minted");
+        require(tokenId <= maxSupply, "All collection has been minted");
         require(!minted[msg.sender], "Already minted");
         require(mintActive, "Minted is paused");
-        tokenId++;
+
         minted[msg.sender] = true;
-        owners[msg.sender] = true;
-        accessWallets[msg.sender] = true;
+        tokenId++;
         _safeMint(msg.sender, tokenId-1);
     }
 
@@ -93,11 +174,11 @@ contract CantoMaze is ERC721, ERC2981, Ownable {
      * @dev Mints 55 NFTs for the team and giveaways.
      */
     function teamMint() public payable onlyOwner {
-        require(tokenId + 54 <= totalSupply, "All collection has been minted");
+        require(tokenId + 54 <= maxSupply, "All collection has been minted");
         require(!minted[msg.sender], "Already minted");
+        
         minted[msg.sender] = true;
-        owners[msg.sender] = true;
-        accessWallets[msg.sender] = true;
+     
         for(int i = 0; i < 55; i++){
             tokenId++;
             _safeMint(msg.sender, tokenId-1);
@@ -116,12 +197,6 @@ contract CantoMaze is ERC721, ERC2981, Ownable {
         _setDefaultRoyalty(receiver, feeNumerator);
     }
 
-    /**
-     * @dev Sets NFT price
-     */
-    function setPrice(uint256 _price) public onlyOwner {
-        price = _price;
-    }
 
     /**
      * @dev Sets URI
@@ -135,6 +210,15 @@ contract CantoMaze is ERC721, ERC2981, Ownable {
      */
     function setMintState(bool _mintActive) public onlyOwner {
         mintActive = _mintActive;
+    }
+
+    function totalSupply() public view returns (uint256){
+        return tokenId;
+    }
+
+    //TODO: Remove this function
+    function checkLengh(uint256 _tokenId) public view returns (uint256) {
+        return tokenIdAccessWallets[_tokenId].length;
     }
 
     // The following functions are overrides required by Solidity.
@@ -156,29 +240,4 @@ contract CantoMaze is ERC721, ERC2981, Ownable {
         return bytes(uri).length > 0 ? uri : "";
     }
 
-    /**
-     * @dev Override function from ERC721
-    */
-    function safeTransferFrom(
-        address from,
-        address to,
-        uint256 _tokenId,
-        bytes memory data
-    ) public virtual override {
-        require(_isApprovedOrOwner(_msgSender(), _tokenId), "ERC721: caller is not token owner or approved");
-
-        for (uint256 i = 0; i < ownerAccessWallets[from].length; i++){
-            accessWallets[ownerAccessWallets[from][i]] = false;
-        }
-
-        ownerAccessWallets[from] = new address[](4);
-
-        owners[from] = false;
-        accessWallets[from] = false;
-
-        owners[to] = true;
-        accessWallets[to] = true;
-
-        _safeTransfer(from, to, tokenId, data);
-    }
 }
