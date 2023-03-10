@@ -10,7 +10,7 @@ interface Turnstile {
     function register(address) external returns (uint256);
 }
 
-contract CantoMaze is ERC721, ERC2981, Ownable {
+contract Cantomaze is ERC721, ERC2981, Ownable {
     using Strings for uint256;
 
     uint256 public maxSupply;
@@ -62,7 +62,7 @@ contract CantoMaze is ERC721, ERC2981, Ownable {
      * - Msg.sender needs to be the owner of the token Id
      * - The token Id needs to have given access to the wallet address before
      */
-    function remmoveAccess(uint256 _tokenId, address addr) public {
+    function removeAccess(uint256 _tokenId, address addr) public {
         require(ownerOf(_tokenId) == msg.sender, "you are not the owner of the token Id");
         require(checkAddressPerTokenId(_tokenId, addr), "You did not give access to this wallet with this token Id");
 
@@ -73,8 +73,8 @@ contract CantoMaze is ERC721, ERC2981, Ownable {
     /**
      * @dev Check access to the gallary of the msg.sender
      */
-    function checkAccess(uint256 _tokenId) public view returns (bool val){
-        if(ownerOf(_tokenId) == msg.sender || accessWallets[msg.sender]){
+    function checkAccess(address addr) public view returns (bool val){
+        if(balanceOf(addr) != 0 || accessWallets[addr]){
             return true;
         } 
     }
@@ -146,20 +146,22 @@ contract CantoMaze is ERC721, ERC2981, Ownable {
      * - value sent iqual or more than price
      * - tokenId less or equal totalSupply
      */
-    function safeMint() public payable {
+    function safeMint() public returns (uint256){
         require(tokenId <= maxSupply, "All collection has been minted");
-        require(!minted[msg.sender], "Already minted");
+        //require(!minted[msg.sender], "Already minted");
         require(mintActive, "Minted is paused");
 
         minted[msg.sender] = true;
         tokenId++;
         _safeMint(msg.sender, tokenId-1);
+
+        return (tokenId-1);
     }
 
     /**
      * @dev Mints 55 NFTs for the team and giveaways.
      */
-    function teamMint() public payable onlyOwner {
+    function teamMint() public onlyOwner {
         require(tokenId + 54 <= maxSupply, "All collection has been minted");
         require(!minted[msg.sender], "Already minted");
         
@@ -207,7 +209,7 @@ contract CantoMaze is ERC721, ERC2981, Ownable {
      * @dev Total minted supply
      */
     function totalSupply() public view returns (uint256){
-        return tokenId;
+        return (tokenId-1);
     }
 
     //----- END -----//
