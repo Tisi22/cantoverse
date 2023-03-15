@@ -17,7 +17,7 @@ contract Cantomaze is ERC721, ERC2981, Ownable {
     uint256 tokenId;
     string public uri;
     bool public mintActive;
-    uint12 public maxAccessPerTokenId;
+    uint8 public maxAccessPerTokenId;
 
     mapping(address => bool) private accessWallets;
 
@@ -240,7 +240,7 @@ contract Cantomaze is ERC721, ERC2981, Ownable {
     /**
      * @dev sets maxAccessPerTokenId
      */
-    function setMaxAccessPerTokenId(uint12 _maxAccessPerTokenId) public onlyOwner {
+    function setMaxAccessPerTokenId(uint8 _maxAccessPerTokenId) public onlyOwner {
         maxAccessPerTokenId = _maxAccessPerTokenId;
     }
 
