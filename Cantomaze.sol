@@ -17,6 +17,7 @@ contract Cantomaze is ERC721, ERC2981, Ownable {
     uint256 tokenId;
     string public uri;
     bool public mintActive;
+    uint12 public maxAccessPerTokenId;
 
     mapping(address => bool) private accessWallets;
 
@@ -31,23 +32,24 @@ contract Cantomaze is ERC721, ERC2981, Ownable {
         turnstile.register(tx.origin);
         maxSupply = _maxSupply;
         tokenId = 1;
+        maxAccessPerTokenId = 4;
         mintActive = false;
     }
 
-    //----- GIVE/REMOVE/CHECK ACCESS TO WALLET ADDRESS -----//
+    //----- GIVE/REMOVE/CHECK ACCESS TO ADDRESS -----//
 
     /**
-     * @dev Gives the access to a wallet address
+     * @dev Gives the access to an address
      *
      * Requirements:
      *
      * - Msg.sender needs to be the owner of the token Id
-     * - Max access wallets per token Id is 4
+     * - Max access wallets per token Id is maxAccessPerTokenId
      * - Address does not have access before
      */
     function giveAccess(uint256 _tokenId, address addr) public {
         require(ownerOf(_tokenId) == msg.sender, "you are not the owner of the token Id");
-        require(tokenIdAccessWallets[_tokenId].length < 4, "You have already given access to the maximum wallets");
+        require(tokenIdAccessWallets[_tokenId].length < maxAccessPerTokenId, "You have already given access to the maximum wallets");
         require(accessWallets[addr] == false, "The wallet address has already access");
 
         tokenIdAccessWallets[_tokenId].push(addr);
@@ -55,7 +57,7 @@ contract Cantomaze is ERC721, ERC2981, Ownable {
     }
 
     /**
-     * @dev Removes the access to a wallet address
+     * @dev Removes the access to an address
      *
      * Requirements:
      *
@@ -148,7 +150,7 @@ contract Cantomaze is ERC721, ERC2981, Ownable {
      */
     function safeMint() public returns (uint256){
         require(tokenId <= maxSupply, "All collection has been minted");
-        //require(!minted[msg.sender], "Already minted");
+        require(!minted[msg.sender], "Already minted");
         require(mintActive, "Minted is paused");
 
         minted[msg.sender] = true;
@@ -236,6 +238,13 @@ contract Cantomaze is ERC721, ERC2981, Ownable {
     }
 
     /**
+     * @dev sets maxAccessPerTokenId
+     */
+    function setMaxAccessPerTokenId(uint12 _maxAccessPerTokenId) public onlyOwner {
+        maxAccessPerTokenId = _maxAccessPerTokenId;
+    }
+
+    /**
      * @dev Sets mint state
      */
     function setMintState(bool _mintActive) public onlyOwner {
@@ -243,12 +252,6 @@ contract Cantomaze is ERC721, ERC2981, Ownable {
     }
 
     //----- END -----//
-
-    
-    //TODO: Remove this function
-    function checkLengh(uint256 _tokenId) public view returns (uint256) {
-        return tokenIdAccessWallets[_tokenId].length;
-    }
 
     //----- OVERRIDE FUNCTIONS -----//
 
