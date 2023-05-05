@@ -6,8 +6,18 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 import { StringUtils } from "../libraries/StringUtils.sol";
 
+interface Turnstile {
+    function register(address) external returns (uint256);
+}
+
 contract Items is ERC1155, Ownable, ERC1155Supply {
-    constructor() ERC1155("") {}
+
+    // CSR for Canto
+    Turnstile turnstile = Turnstile(0xEcf044C5B4b867CFda001101c617eCd347095B44);
+
+    constructor() ERC1155("") {
+        turnstile.register(tx.origin);
+    }
 
     string private _uri;
     mapping (uint256 => uint256) prices;
