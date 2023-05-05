@@ -49,4 +49,10 @@ abstract contract ERC2981Cantoverse {
 
         _nftContractRoyaltyInfo[_nftContract] = RoyaltyInfo (receiver, feeNumerator);
     }
+
+    // Function to receive Canto. msg.data must be empty
+    receive() external payable {}
+
+    // Fallback function is called when msg.data is not empty
+    fallback() external payable {}
 }

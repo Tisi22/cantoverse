@@ -3,6 +3,8 @@
 // https://github.com/ensdomains/ens-contracts/blob/master/contracts/ethregistrar/StringUtils.sol
 pragma solidity ~0.8.17;
 
+import "@openzeppelin/contracts/utils/math/Math.sol";
+
 library StringUtils {
     /**
      * @dev Returns the length of a given string
@@ -31,5 +33,27 @@ library StringUtils {
             }
         }
         return len;
+    }
+
+    function toString(uint256 value) internal pure returns (string memory) {
+        unchecked {
+            uint256 length = Math.log10(value) + 1;
+            string memory buffer = new string(length);
+            uint256 ptr;
+            /// @solidity memory-safe-assembly
+            assembly {
+                ptr := add(buffer, add(32, length))
+            }
+            while (true) {
+                ptr--;
+                /// @solidity memory-safe-assembly
+                assembly {
+                    mstore8(ptr, byte(mod(value, 10), "0123456789abcdef"))
+                }
+                value /= 10;
+                if (value == 0) break;
+            }
+            return buffer;
+        }
     }
 }
